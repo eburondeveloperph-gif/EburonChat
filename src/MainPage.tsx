@@ -15,18 +15,8 @@ export default function MainPage() {
   return (
     <div className="w-full h-[100dvh] flex flex-col relative bg-gradient-to-b from-[#092C23] to-[#030C0A] overflow-hidden">
         
-        {/* Fake Status Bar */}
-        <div className="h-12 w-full flex items-center justify-between px-6 pt-2 text-[14px] font-semibold text-white/90 z-50 pointer-events-none absolute top-0 left-0 right-0">
-            <span>9:41</span>
-            <div className="flex gap-1.5 items-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h20V2z"/></svg>
-                <svg width="22" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
-            </div>
-        </div>
-
         {/* Header - Sticky */}
-        <header className="sticky top-0 flex justify-between items-center px-6 pt-14 pb-4 z-40 bg-[#092C23]/80 backdrop-blur-md">
+        <header className="sticky top-0 flex justify-between items-center px-6 py-4 z-40 bg-[#092C23]/80 backdrop-blur-md">
             <div className="w-12 h-12 rounded-full overflow-hidden border border-teal-500/50 glow-avatar p-[2px]">
                 <img src={user?.photoURL || "https://i.pravatar.cc/150?img=47"} alt="User" className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
             </div>

@@ -1,0 +1,7 @@
+{
+  "name": "Max 2.0",
+  "description": "Maximus Chief-of-Staff, a specialized AI system created by Eburon AI.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

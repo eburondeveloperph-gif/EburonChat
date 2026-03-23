@@ -526,23 +526,46 @@ export default function VoicePage() {
             setStatus("Listening, Boss...");
             await setupAudioInput(sessionPromise);
           },
-          onmessage: async (message: LiveServerMessage) => {
-            // Handle audio output
-            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-            if (base64Audio) {
-              playAudioChunk(base64Audio);
+          onmessage: async (message: any) => {
+            console.log("Live API Message:", message);
+            
+            if (message.serverContent?.modelTurn?.parts) {
+              for (const part of message.serverContent.modelTurn.parts) {
+                if (part.inlineData?.data) {
+                  console.log("Received audio chunk, length:", part.inlineData.data.length);
+                  playAudioChunk(part.inlineData.data);
+                }
+                if (part.text) {
+                  console.log("Received text:", part.text);
+                  setTranscript(part.text);
+                }
+              }
+            }
+            
+            // Handle transcription
+            if (message.serverContent?.modelTurn?.parts) {
+              const textParts = message.serverContent.modelTurn.parts.filter((p: any) => p.text);
+              if (textParts.length > 0) {
+                setTranscript(textParts.map((p: any) => p.text).join(''));
+              }
+            }
+
+            // Handle input/output transcription from the message directly
+            if (message.inputTranscription?.parts) {
+              const text = message.inputTranscription.parts.map((p: any) => p.text).join('');
+              if (text) setTranscript(`You: ${text}`);
+            }
+            if (message.outputTranscription?.parts) {
+              const text = message.outputTranscription.parts.map((p: any) => p.text).join('');
+              if (text) setTranscript(`Max: ${text}`);
             }
             
             // Handle interruption
             if (message.serverContent?.interrupted) {
+              console.log("Interrupted by user");
               audioQueueRef.current = [];
               isPlayingRef.current = false;
-            }
-
-            // Handle transcription
-            const modelText = message.serverContent?.modelTurn?.parts[0]?.text;
-            if (modelText) {
-              setTranscript(modelText);
+              nextPlayTimeRef.current = 0;
             }
           },
           onerror: (error) => {
@@ -581,6 +604,10 @@ export default function VoicePage() {
 
       const audioContext = new AudioContext({ sampleRate: 16000 });
       audioContextRef.current = audioContext;
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+      console.log("AudioContext state:", audioContext.state);
 
       const source = audioContext.createMediaStreamSource(stream);
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
@@ -605,9 +632,15 @@ export default function VoicePage() {
         const base64Data = btoa(binary);
 
         sessionPromise.then((session: any) => {
-          session.sendRealtimeInput({
-            audio: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
-          });
+          try {
+            session.sendRealtimeInput({
+              audio: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
+            });
+          } catch (err) {
+            console.error("Error sending realtime input:", err);
+          }
+        }).catch((err: any) => {
+          console.error("Session promise error:", err);
         });
       };
 
@@ -621,13 +654,16 @@ export default function VoicePage() {
     }
   };
 
+  const nextPlayTimeRef = useRef<number>(0);
+
   const playAudioChunk = async (base64Audio: string) => {
     try {
       if (!audioContextRef.current) return;
       
       const binaryString = atob(base64Audio);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
+      const length = binaryString.length - (binaryString.length % 2);
+      const bytes = new Uint8Array(length);
+      for (let i = 0; i < length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
       
@@ -664,11 +700,23 @@ export default function VoicePage() {
     source.buffer = audioBuffer;
     source.connect(audioContextRef.current.destination);
     
+    const currentTime = audioContextRef.current.currentTime;
+    if (nextPlayTimeRef.current < currentTime) {
+      nextPlayTimeRef.current = currentTime;
+    }
+    
+    source.start(nextPlayTimeRef.current);
+    nextPlayTimeRef.current += audioBuffer.duration;
+    
     source.onended = () => {
-      processAudioQueue();
+      if (audioQueueRef.current.length === 0) {
+        isPlayingRef.current = false;
+      }
     };
     
-    source.start();
+    if (audioQueueRef.current.length > 0) {
+      processAudioQueue();
+    }
   };
 
   const stopListening = () => {
@@ -694,6 +742,7 @@ export default function VoicePage() {
     }
     audioQueueRef.current = [];
     isPlayingRef.current = false;
+    nextPlayTimeRef.current = 0;
   };
 
   const toggleListening = () => {
